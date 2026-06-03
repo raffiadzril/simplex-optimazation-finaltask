@@ -12,6 +12,11 @@ function doPost(e) {
     if (!sheet) {
       sheet = ss.getSheets()[1] || ss.getActiveSheet();
     }
+  } else if (target === "parameter") {
+    sheet = ss.getSheetByName("parameter");
+    if (!sheet) {
+      sheet = ss.getSheets()[2] || ss.getActiveSheet();
+    }
   } else {
     sheet = ss.getSheetByName("bahan");
     if (!sheet) {
@@ -67,6 +72,26 @@ function doPost(e) {
         }
       }
       return response("error", "Resep tidak ditemukan");
+    }
+  } else if (target === "parameter") {
+    if (action === "update") {
+      // Update parameter berdasarkan parameter_old
+      var range = sheet.getRange("A:A");
+      var values = range.getValues();
+      
+      var oldParam = itemData.parameter_old.toLowerCase();
+      
+      for (var i = 1; i < values.length; i++) {
+        if (values[i][0].toString().toLowerCase() === oldParam) {
+          // Replace kolom (parameter, nilai)
+          sheet.getRange(i + 1, 1, 1, 2).setValues([[
+            itemData.parameter_new,
+            itemData.nilai
+          ]]);
+          return response("success", "Parameter berhasil diupdate");
+        }
+      }
+      return response("error", "Parameter tidak ditemukan");
     }
   } else {
     // target === "bahan"

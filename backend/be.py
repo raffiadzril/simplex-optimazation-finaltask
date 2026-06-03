@@ -44,7 +44,7 @@ GID_RESEP = 1567387597
 GID_PARAMETER = 799126135
 
 # Google Apps Script Configuration (untuk write ke spreadsheet)
-GAS_BAHAN_URL = "https://script.google.com/macros/s/AKfycbwPwYRp9t09X7nbhHK5TUOw7iliuRJvnK8YKQItGSsSx44Vg3D0rfJBk9Eos41Z5Nx4jg/exec"
+GAS_BAHAN_URL = "https://script.google.com/macros/s/AKfycbxh3iAkQclYGm5aupVpt__wEersN-AHJxg0D8PojBpQz_xkVzR0LjUeXtuCnj_RI_s/exec"
 
 def get_sheet_url(gid: int):
     return f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
@@ -146,6 +146,15 @@ class ResepResponse(BaseModel):
     jumlah_gram: float
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+class ParameterCreate(BaseModel):
+    parameter: str
+    nilai: float
+
+class ParameterResponse(BaseModel):
+    parameter: str
+    nilai: float
+
 
 class DataStore:
     def __init__(self):
@@ -643,6 +652,11 @@ async def create_resep(request: ResepCreate):
         
     produk_clean = request.produk.strip().lower()
     bahan_clean = request.bahan.strip().lower()
+    
+    # Validasi keberadaan bahan
+    if bahan_clean not in data_store.bahan_list:
+        raise HTTPException(status_code=400, detail=f"Bahan '{request.bahan}' tidak terdaftar")
+        
     key = f"{produk_clean}|{bahan_clean}"
     
     if key in data_store.resep_list:
@@ -697,6 +711,11 @@ async def update_resep(produk: str, bahan: str, request: ResepCreate):
         
     produk_baru = request.produk.strip().lower()
     bahan_baru = request.bahan.strip().lower()
+    
+    # Validasi keberadaan bahan
+    if bahan_baru not in data_store.bahan_list:
+        raise HTTPException(status_code=400, detail=f"Bahan '{request.bahan}' tidak terdaftar")
+        
     key_new = f"{produk_baru}|{bahan_baru}"
     
     now = datetime.now().isoformat()
@@ -770,6 +789,68 @@ async def delete_resep(produk: str, bahan: str):
     })
     
     return None
+
+
+# ============ CRUD Endpoints untuk PARAMETER ============
+
+@app.get("/api/parameter", response_model=list[ParameterResponse], tags=["Parameter"])
+async def get_all_parameter():
+    """Ambil semua parameter"""
+    if not data_store.parameter:
+        return []
+    return [
+        ParameterResponse(
+            parameter=k,
+            nilai=v
+        )
+        for k, v in sorted(data_store.parameter.items())
+    ]
+
+@app.get("/api/parameter/{nama_parameter}", response_model=ParameterResponse, tags=["Parameter"])
+async def get_parameter(nama_parameter: str):
+    """Ambil parameter berdasarkan nama"""
+    param_clean = nama_parameter.strip().lower()
+    if param_clean not in data_store.parameter:
+        raise HTTPException(status_code=404, detail=f"Parameter '{nama_parameter}' tidak ditemukan")
+    
+    return ParameterResponse(
+        parameter=param_clean,
+        nilai=data_store.parameter[param_clean]
+    )
+
+
+@app.put("/api/parameter/{nama_parameter}", response_model=ParameterResponse, tags=["Parameter"])
+async def update_parameter(nama_parameter: str, request: ParameterCreate):
+    """Update parameter yang sudah ada"""
+    param_clean = nama_parameter.strip().lower()
+    if param_clean not in data_store.parameter:
+        raise HTTPException(status_code=404, detail=f"Parameter '{nama_parameter}' tidak ditemukan")
+        
+    if not request.parameter or not request.parameter.strip():
+        raise HTTPException(status_code=400, detail="Nama parameter tidak boleh kosong")
+        
+    param_baru = request.parameter.strip().lower()
+    
+    # Jika nama parameter berubah
+    if param_clean != param_baru:
+        if param_baru in data_store.parameter:
+            raise HTTPException(status_code=409, detail=f"Parameter '{request.parameter}' sudah ada")
+        data_store.parameter.pop(param_clean)
+        
+    data_store.parameter[param_baru] = float(request.nilai)
+    
+    # Post ke Google Sheets
+    post_to_google_sheets("parameter", "update", {
+        "parameter_old": param_clean,
+        "parameter_new": param_baru,
+        "nilai": float(request.nilai)
+    })
+    
+    return ParameterResponse(
+        parameter=param_baru,
+        nilai=float(request.nilai)
+    )
+
 
 
 if __name__ == "__main__":
