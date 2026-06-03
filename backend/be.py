@@ -8,6 +8,8 @@ import pandas as pd
 from datetime import datetime
 import traceback as tb
 from contextlib import asynccontextmanager
+import requests
+import json
 
 # Lifespan event handler
 @asynccontextmanager
@@ -41,8 +43,33 @@ GID_BAHAN = 0
 GID_RESEP = 1567387597
 GID_PARAMETER = 799126135
 
+# Google Apps Script Configuration (untuk write ke spreadsheet)
+GAS_BAHAN_URL = "https://script.google.com/macros/s/AKfycbwQYvzY4H6v_c1obAmmpf2Qj79wxB_9KjdZMe7lHg21uBAO9GQPfW847dOFqZvMGHa-LQ/exec"
+
 def get_sheet_url(gid: int):
     return f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
+
+# Helper function untuk POST ke Google Apps Script
+def post_to_google_sheets(action: str, data: dict) -> bool:
+    """
+    Post data ke Google Apps Script untuk disimpan ke spreadsheet
+    action: 'create', 'update', 'delete'
+    """
+    try:
+        payload = {
+            "action": action,
+            "data": data
+        }
+        response = requests.post(GAS_BAHAN_URL, json=payload, timeout=5)
+        if response.status_code == 200:
+            print(f"✓ Data berhasil di-{action} ke spreadsheet")
+            return True
+        else:
+            print(f"✗ Error {response.status_code}: {response.text}")
+            return False
+    except Exception as e:
+        print(f"✗ Error posting to Google Sheets: {str(e)}")
+        return False
 
 def parse_indonesian_number(value: str) ->float:
     if isinstance(value,(int, float)):
@@ -90,6 +117,21 @@ class DataStatus(BaseModel):
     total_produk: int
     total_bahan: int
 
+# ============ Model untuk CRUD Bahan ============
+class BahanCreate(BaseModel):
+    """Model untuk membuat/update bahan"""
+    nama_bahan: str
+    harga: float
+    stok: float
+
+class BahanResponse(BaseModel):
+    """Model response bahan"""
+    nama_bahan: str
+    harga: float
+    stok: float
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
 class DataStore:
     def __init__(self):
         self.harga_bahan = {}
@@ -100,6 +142,8 @@ class DataStore:
         self.bahan_loaded = False
         self.resep_loaded = False
         self.parameter_loaded = False
+        # Storage untuk CRUD bahan (key: nama_bahan)
+        self.bahan_list = {}  # Dict[str, dict]
 
 data_store = DataStore()
 
@@ -110,12 +154,26 @@ def load_bahan_dari_sheets():
 
         data_store.harga_bahan = {}
         data_store.stok_bahan = {}
+        data_store.bahan_list = {}  # Reset bahan_list
 
+        now = datetime.now().isoformat()
         for _, row in df.iterrows():
             nama = row['nama_bahan'].strip().lower()
-            data_store.harga_bahan[nama] = parse_indonesian_number(row['harga'])
-            data_store.stok_bahan[nama] = parse_indonesian_number(row['stok'])
-            print(f"{nama} | harga: {data_store.harga_bahan[nama]} | stok: {data_store.stok_bahan[nama]}")
+            harga = parse_indonesian_number(row['harga'])
+            stok = parse_indonesian_number(row['stok'])
+            
+            data_store.harga_bahan[nama] = harga
+            data_store.stok_bahan[nama] = stok
+            
+            # Populate ke bahan_list juga
+            data_store.bahan_list[nama] = {
+                "harga": harga,
+                "stok": stok,
+                "created_at": now,
+                "updated_at": now
+            }
+            
+            print(f"{nama} | harga: {harga} | stok: {stok}")
 
         data_store.bahan_loaded = True
         print(f"Bahan loaded: {len(data_store.harga_bahan)} items")
@@ -369,7 +427,147 @@ async def optimize():
             detail=f"Error during optimization: {str(e)}"
         )
 
+# ============ CRUD Endpoints untuk BAHAN ============
 
+@app.get("/api/bahan", response_model=list[BahanResponse], tags=["Bahan"])
+async def get_all_bahan():
+    """Ambil semua data bahan"""
+    if not data_store.bahan_list:
+        return []
+    return [
+        BahanResponse(
+            nama_bahan=nama,
+            harga=bahan["harga"],
+            stok=bahan["stok"],
+            created_at=bahan.get("created_at"),
+            updated_at=bahan.get("updated_at")
+        )
+        for nama, bahan in sorted(data_store.bahan_list.items())
+    ]
+
+@app.get("/api/bahan/{nama_bahan}", response_model=BahanResponse, tags=["Bahan"])
+async def get_bahan(nama_bahan: str):
+    """Ambil bahan berdasarkan nama"""
+    nama_clean = nama_bahan.strip().lower()
+    if nama_clean not in data_store.bahan_list:
+        raise HTTPException(status_code=404, detail=f"Bahan '{nama_bahan}' tidak ditemukan")
+    
+    bahan = data_store.bahan_list[nama_clean]
+    return BahanResponse(
+        nama_bahan=nama_clean,
+        harga=bahan["harga"],
+        stok=bahan["stok"],
+        created_at=bahan.get("created_at"),
+        updated_at=bahan.get("updated_at")
+    )
+
+@app.post("/api/bahan", response_model=BahanResponse, status_code=201, tags=["Bahan"])
+async def create_bahan(request: BahanCreate):
+    """Tambah bahan baru"""
+    # Validasi input
+    if not request.nama_bahan or not request.nama_bahan.strip():
+        raise HTTPException(status_code=400, detail="Nama bahan tidak boleh kosong")
+    if request.harga < 0:
+        raise HTTPException(status_code=400, detail="Harga tidak boleh negatif")
+    if request.stok < 0:
+        raise HTTPException(status_code=400, detail="Stok tidak boleh negatif")
+    
+    nama_clean = request.nama_bahan.strip().lower()
+    
+    # Cek apakah sudah ada
+    if nama_clean in data_store.bahan_list:
+        raise HTTPException(status_code=409, detail=f"Bahan '{request.nama_bahan}' sudah ada")
+    
+    # Simpan data bahan
+    now = datetime.now().isoformat()
+    data_store.bahan_list[nama_clean] = {
+        "harga": float(request.harga),
+        "stok": float(request.stok),
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    # Post ke Google Sheets
+    post_to_google_sheets("create", {
+        "nama_bahan": nama_clean,
+        "harga": float(request.harga),
+        "stok": float(request.stok)
+    })
+    
+    return BahanResponse(
+        nama_bahan=nama_clean,
+        harga=request.harga,
+        stok=request.stok,
+        created_at=now,
+        updated_at=now
+    )
+
+@app.put("/api/bahan/{nama_bahan}", response_model=BahanResponse, tags=["Bahan"])
+async def update_bahan(nama_bahan: str, request: BahanCreate):
+    """Update bahan yang sudah ada"""
+    nama_clean = nama_bahan.strip().lower()
+    if nama_clean not in data_store.bahan_list:
+        raise HTTPException(status_code=404, detail=f"Bahan '{nama_bahan}' tidak ditemukan")
+    
+    # Validasi input
+    if not request.nama_bahan or not request.nama_bahan.strip():
+        raise HTTPException(status_code=400, detail="Nama bahan tidak boleh kosong")
+    if request.harga < 0:
+        raise HTTPException(status_code=400, detail="Harga tidak boleh negatif")
+    if request.stok < 0:
+        raise HTTPException(status_code=400, detail="Stok tidak boleh negatif")
+    
+    nama_baru = request.nama_bahan.strip().lower()
+    now = datetime.now().isoformat()
+    
+    # Jika nama berubah, perlu update key di dictionary
+    if nama_clean != nama_baru:
+        # Cek apakah nama baru sudah ada
+        if nama_baru in data_store.bahan_list:
+            raise HTTPException(status_code=409, detail=f"Bahan '{request.nama_bahan}' sudah ada")
+        
+        # Move ke key baru
+        data_store.bahan_list[nama_baru] = data_store.bahan_list.pop(nama_clean)
+    
+    # Update data
+    data_store.bahan_list[nama_baru].update({
+        "harga": float(request.harga),
+        "stok": float(request.stok),
+        "updated_at": now
+    })
+    
+    # Post update ke Google Sheets (kirim nama lama dan baru)
+    post_to_google_sheets("update", {
+        "nama_bahan_old": nama_clean,
+        "nama_bahan_new": nama_baru,
+        "harga": float(request.harga),
+        "stok": float(request.stok)
+    })
+    
+    bahan = data_store.bahan_list[nama_baru]
+    return BahanResponse(
+        nama_bahan=nama_baru,
+        harga=bahan["harga"],
+        stok=bahan["stok"],
+        created_at=bahan.get("created_at"),
+        updated_at=bahan.get("updated_at")
+    )
+
+@app.delete("/api/bahan/{nama_bahan}", status_code=204, tags=["Bahan"])
+async def delete_bahan(nama_bahan: str):
+    """Hapus bahan"""
+    nama_clean = nama_bahan.strip().lower()
+    if nama_clean not in data_store.bahan_list:
+        raise HTTPException(status_code=404, detail=f"Bahan '{nama_bahan}' tidak ditemukan")
+    
+    del data_store.bahan_list[nama_clean]
+    
+    # Post delete ke Google Sheets
+    post_to_google_sheets("delete", {
+        "nama_bahan": nama_clean
+    })
+    
+    return None
 
 
 if __name__ == "__main__":
