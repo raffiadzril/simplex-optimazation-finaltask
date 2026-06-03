@@ -44,25 +44,27 @@ GID_RESEP = 1567387597
 GID_PARAMETER = 799126135
 
 # Google Apps Script Configuration (untuk write ke spreadsheet)
-GAS_BAHAN_URL = "https://script.google.com/macros/s/AKfycbwQYvzY4H6v_c1obAmmpf2Qj79wxB_9KjdZMe7lHg21uBAO9GQPfW847dOFqZvMGHa-LQ/exec"
+GAS_BAHAN_URL = "https://script.google.com/macros/s/AKfycbwPwYRp9t09X7nbhHK5TUOw7iliuRJvnK8YKQItGSsSx44Vg3D0rfJBk9Eos41Z5Nx4jg/exec"
 
 def get_sheet_url(gid: int):
     return f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
 
 # Helper function untuk POST ke Google Apps Script
-def post_to_google_sheets(action: str, data: dict) -> bool:
+def post_to_google_sheets(target: str, action: str, data: dict) -> bool:
     """
     Post data ke Google Apps Script untuk disimpan ke spreadsheet
+    target: 'bahan', 'resep'
     action: 'create', 'update', 'delete'
     """
     try:
         payload = {
+            "target": target,
             "action": action,
             "data": data
         }
         response = requests.post(GAS_BAHAN_URL, json=payload, timeout=5)
         if response.status_code == 200:
-            print(f"✓ Data berhasil di-{action} ke spreadsheet")
+            print(f"✓ Data {target} berhasil di-{action} ke spreadsheet")
             return True
         else:
             print(f"✗ Error {response.status_code}: {response.text}")
@@ -132,6 +134,19 @@ class BahanResponse(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
+
+class ResepCreate(BaseModel):
+    produk: str
+    bahan: str
+    jumlah_gram: float
+
+class ResepResponse(BaseModel):
+    produk: str
+    bahan: str
+    jumlah_gram: float
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
 class DataStore:
     def __init__(self):
         self.harga_bahan = {}
@@ -144,6 +159,7 @@ class DataStore:
         self.parameter_loaded = False
         # Storage untuk CRUD bahan (key: nama_bahan)
         self.bahan_list = {}  # Dict[str, dict]
+        self.resep_list = {}
 
 data_store = DataStore()
 
@@ -206,6 +222,15 @@ def load_resep_dari_sheet():
             if produk not in data_store.resep:
                 data_store.resep[produk] = {}
             data_store.resep[produk][bahan] = jumlah_kg
+            key = f"{produk}|{bahan}"
+
+            data_store.resep_list[key] = {
+                "produk": produk,
+                "bahan": bahan,
+                "jumlah_gram": jumlah_gram,
+                "created_at": datetime.now().isoformat(),
+                "updated_at": datetime.now().isoformat()
+            }
 
             print(f"data resep: {data_store.resep}" )
 
@@ -488,7 +513,7 @@ async def create_bahan(request: BahanCreate):
     }
     
     # Post ke Google Sheets
-    post_to_google_sheets("create", {
+    post_to_google_sheets("bahan", "create", {
         "nama_bahan": nama_clean,
         "harga": float(request.harga),
         "stok": float(request.stok)
@@ -537,7 +562,7 @@ async def update_bahan(nama_bahan: str, request: BahanCreate):
     })
     
     # Post update ke Google Sheets (kirim nama lama dan baru)
-    post_to_google_sheets("update", {
+    post_to_google_sheets("bahan", "update", {
         "nama_bahan_old": nama_clean,
         "nama_bahan_new": nama_baru,
         "harga": float(request.harga),
@@ -563,8 +588,185 @@ async def delete_bahan(nama_bahan: str):
     del data_store.bahan_list[nama_clean]
     
     # Post delete ke Google Sheets
-    post_to_google_sheets("delete", {
+    post_to_google_sheets("bahan", "delete", {
         "nama_bahan": nama_clean
+    })
+    
+    return None
+
+
+# ============ CRUD Endpoints untuk RESEP ============
+
+@app.get("/api/resep", response_model=list[ResepResponse], tags=["Resep"])
+async def get_all_resep():
+    """Ambil semua data resep"""
+    if not data_store.resep_list:
+        return []
+    return [
+        ResepResponse(
+            produk=resep["produk"],
+            bahan=resep["bahan"],
+            jumlah_gram=resep["jumlah_gram"],
+            created_at=resep.get("created_at"),
+            updated_at=resep.get("updated_at")
+        )
+        for key, resep in sorted(data_store.resep_list.items())
+    ]
+
+@app.get("/api/resep/{produk}/{bahan}", response_model=ResepResponse, tags=["Resep"])
+async def get_resep(produk: str, bahan: str):
+    """Ambil resep berdasarkan produk dan bahan"""
+    produk_clean = produk.strip().lower()
+    bahan_clean = bahan.strip().lower()
+    key = f"{produk_clean}|{bahan_clean}"
+    if key not in data_store.resep_list:
+        raise HTTPException(status_code=404, detail=f"Resep untuk produk '{produk}' dengan bahan '{bahan}' tidak ditemukan")
+    
+    resep = data_store.resep_list[key]
+    return ResepResponse(
+        produk=resep["produk"],
+        bahan=resep["bahan"],
+        jumlah_gram=resep["jumlah_gram"],
+        created_at=resep.get("created_at"),
+        updated_at=resep.get("updated_at")
+    )
+
+@app.post("/api/resep", response_model=ResepResponse, status_code=201, tags=["Resep"])
+async def create_resep(request: ResepCreate):
+    """Tambah resep baru"""
+    if not request.produk or not request.produk.strip():
+        raise HTTPException(status_code=400, detail="Nama produk tidak boleh kosong")
+    if not request.bahan or not request.bahan.strip():
+        raise HTTPException(status_code=400, detail="Nama bahan tidak boleh kosong")
+    if request.jumlah_gram <= 0:
+        raise HTTPException(status_code=400, detail="Jumlah gram harus lebih besar dari 0")
+        
+    produk_clean = request.produk.strip().lower()
+    bahan_clean = request.bahan.strip().lower()
+    key = f"{produk_clean}|{bahan_clean}"
+    
+    if key in data_store.resep_list:
+        raise HTTPException(status_code=409, detail=f"Resep untuk produk '{request.produk}' dengan bahan '{request.bahan}' sudah ada")
+        
+    now = datetime.now().isoformat()
+    # Simpan di resep_list
+    data_store.resep_list[key] = {
+        "produk": produk_clean,
+        "bahan": bahan_clean,
+        "jumlah_gram": float(request.jumlah_gram),
+        "created_at": now,
+        "updated_at": now
+    }
+    
+    # Update juga di data_store.resep (untuk kalkulasi/optimasi)
+    if produk_clean not in data_store.resep:
+        data_store.resep[produk_clean] = {}
+    data_store.resep[produk_clean][bahan_clean] = float(request.jumlah_gram) / 1000.0
+    
+    # Post ke Google Sheets
+    post_to_google_sheets("resep", "create", {
+        "produk": produk_clean,
+        "bahan": bahan_clean,
+        "jumlah_gram": float(request.jumlah_gram)
+    })
+    
+    return ResepResponse(
+        produk=produk_clean,
+        bahan=bahan_clean,
+        jumlah_gram=request.jumlah_gram,
+        created_at=now,
+        updated_at=now
+    )
+
+@app.put("/api/resep/{produk}/{bahan}", response_model=ResepResponse, tags=["Resep"])
+async def update_resep(produk: str, bahan: str, request: ResepCreate):
+    """Update resep yang sudah ada"""
+    produk_clean = produk.strip().lower()
+    bahan_clean = bahan.strip().lower()
+    key_old = f"{produk_clean}|{bahan_clean}"
+    
+    if key_old not in data_store.resep_list:
+        raise HTTPException(status_code=404, detail=f"Resep untuk produk '{produk}' dengan bahan '{bahan}' tidak ditemukan")
+        
+    if not request.produk or not request.produk.strip():
+        raise HTTPException(status_code=400, detail="Nama produk tidak boleh kosong")
+    if not request.bahan or not request.bahan.strip():
+        raise HTTPException(status_code=400, detail="Nama bahan tidak boleh kosong")
+    if request.jumlah_gram <= 0:
+        raise HTTPException(status_code=400, detail="Jumlah gram harus lebih besar dari 0")
+        
+    produk_baru = request.produk.strip().lower()
+    bahan_baru = request.bahan.strip().lower()
+    key_new = f"{produk_baru}|{bahan_baru}"
+    
+    now = datetime.now().isoformat()
+    created_at = data_store.resep_list[key_old].get("created_at", now)
+    
+    # Jika key berubah (nama produk atau nama bahan berubah)
+    if key_old != key_new:
+        if key_new in data_store.resep_list:
+            raise HTTPException(status_code=409, detail=f"Resep untuk produk '{request.produk}' dengan bahan '{request.bahan}' sudah ada")
+        
+        # Hapus yang lama dari list dan dari resep dict
+        data_store.resep_list.pop(key_old)
+        if produk_clean in data_store.resep and bahan_clean in data_store.resep[produk_clean]:
+            data_store.resep[produk_clean].pop(bahan_clean)
+            if not data_store.resep[produk_clean]:
+                data_store.resep.pop(produk_clean)
+                
+    # Update data di resep_list
+    data_store.resep_list[key_new] = {
+        "produk": produk_baru,
+        "bahan": bahan_baru,
+        "jumlah_gram": float(request.jumlah_gram),
+        "created_at": created_at,
+        "updated_at": now
+    }
+    
+    # Update data di data_store.resep (untuk kalkulasi/optimasi)
+    if produk_baru not in data_store.resep:
+        data_store.resep[produk_baru] = {}
+    data_store.resep[produk_baru][bahan_baru] = float(request.jumlah_gram) / 1000.0
+    
+    # Post ke Google Sheets
+    post_to_google_sheets("resep", "update", {
+        "produk_old": produk_clean,
+        "bahan_old": bahan_clean,
+        "produk_new": produk_baru,
+        "bahan_new": bahan_baru,
+        "jumlah_gram": float(request.jumlah_gram)
+    })
+    
+    return ResepResponse(
+        produk=produk_baru,
+        bahan=bahan_baru,
+        jumlah_gram=request.jumlah_gram,
+        created_at=created_at,
+        updated_at=now
+    )
+
+@app.delete("/api/resep/{produk}/{bahan}", status_code=204, tags=["Resep"])
+async def delete_resep(produk: str, bahan: str):
+    """Hapus resep"""
+    produk_clean = produk.strip().lower()
+    bahan_clean = bahan.strip().lower()
+    key = f"{produk_clean}|{bahan_clean}"
+    
+    if key not in data_store.resep_list:
+        raise HTTPException(status_code=404, detail=f"Resep untuk produk '{produk}' dengan bahan '{bahan}' tidak ditemukan")
+        
+    del data_store.resep_list[key]
+    
+    # Hapus dari data_store.resep juga
+    if produk_clean in data_store.resep and bahan_clean in data_store.resep[produk_clean]:
+        data_store.resep[produk_clean].pop(bahan_clean)
+        if not data_store.resep[produk_clean]:
+            data_store.resep.pop(produk_clean)
+            
+    # Post ke Google Sheets
+    post_to_google_sheets("resep", "delete", {
+        "produk": produk_clean,
+        "bahan": bahan_clean
     })
     
     return None
