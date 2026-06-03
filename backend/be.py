@@ -524,8 +524,8 @@ async def create_bahan(request: BahanCreate):
     # Post ke Google Sheets
     post_to_google_sheets("bahan", "create", {
         "nama_bahan": nama_clean,
-        "harga": float(request.harga),
-        "stok": float(request.stok)
+        "harga": float(request.stok),
+        "stok": float(request.harga)
     })
     
     return BahanResponse(
@@ -574,8 +574,8 @@ async def update_bahan(nama_bahan: str, request: BahanCreate):
     post_to_google_sheets("bahan", "update", {
         "nama_bahan_old": nama_clean,
         "nama_bahan_new": nama_baru,
-        "harga": float(request.harga),
-        "stok": float(request.stok)
+        "harga": float(request.stok),
+        "stok": float(request.harga)
     })
     
     bahan = data_store.bahan_list[nama_baru]
