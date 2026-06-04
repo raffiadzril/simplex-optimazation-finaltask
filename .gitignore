@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Node / Vite
+node_modules/
+dist/
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+frontend/bakery.jpg
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+vite-*.log
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor local files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local agent/tooling artifacts
+.agents/
+.gemini/
+.impeccable/
+.kiro/
+skills-lock.json
+THINK.md
+
+# Build outputs
+build/
+coverage/
