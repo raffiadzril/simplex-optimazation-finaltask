@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { formatCurrency, toTitleCase } from "./format";
+import { formatCurrency, normalizeKey, parseDecimal, titleCase } from "./format";
 
 describe("format helpers", () => {
-  it("formats Indonesian rupiah without decimals", () => {
-    expect(formatCurrency(27000)).toBe("Rp27.000");
+  it("normalizes Indonesian form input", () => {
+    expect(normalizeKey(" Tepung Terigu ")).toBe("tepung terigu");
+    expect(parseDecimal("0,3")).toBe(0.3);
   });
 
-  it("converts backend keys into readable names", () => {
-    expect(toTitleCase("croissant_coklat")).toBe("Croissant Coklat");
-    expect(toTitleCase("gula pasir")).toBe("Gula Pasir");
+  it("formats display labels and currency", () => {
+    expect(titleCase("croissant keju")).toBe("Croissant Keju");
+    expect(formatCurrency(510000)).toContain("510.000");
   });
 });

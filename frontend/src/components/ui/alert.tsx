@@ -1,13 +1,12 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 const alertVariants = cva("relative w-full rounded-lg border p-4 text-sm", {
   variants: {
     variant: {
-      default: "border-border bg-card text-card-foreground",
-      destructive: "border-destructive/30 bg-destructive/10 text-destructive",
-      warning: "border-amber-200 bg-amber-50 text-amber-900"
+      default: "bg-background text-foreground",
+      destructive: "border-destructive/40 bg-destructive/10 text-foreground"
     }
   },
   defaultVariants: {
@@ -23,12 +22,11 @@ const Alert = React.forwardRef<
 ));
 Alert.displayName = "Alert";
 
-const AlertDescription = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLParagraphElement>
->(({ className, ...props }, ref) => (
-  <p ref={ref} className={cn("text-sm leading-relaxed", className)} {...props} />
-));
+const AlertDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
+  ({ className, ...props }, ref) => (
+    <p ref={ref} className={cn("leading-6 text-muted-foreground", className)} {...props} />
+  )
+);
 AlertDescription.displayName = "AlertDescription";
 
 export { Alert, AlertDescription };

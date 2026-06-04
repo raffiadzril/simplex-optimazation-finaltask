@@ -1,14 +1,14 @@
 # Simplex Optimization Final Task
 
-Dashboard optimasi produksi bakery dengan backend FastAPI dan frontend React + Vite.
+Aplikasi produksi bakery dengan backend FastAPI dan frontend React + Vite.
 
 ## Struktur
 
 - `backend/`: FastAPI API dan solver optimasi.
 - `frontend/`: Dashboard React + TypeScript.
 - `backend/appscript.gs`: Google Apps Script untuk sinkronisasi data Google Sheets.
-- `USER_FLOW.md`: alur penggunaan dashboard.
-- `DESIGN.md`: catatan desain UI.
+
+
 
 ## Backend
 
@@ -21,6 +21,8 @@ API lokal berjalan di `http://127.0.0.1:8000`.
 
 ## Frontend
 
+Frontend berada di `frontend/` dan memakai React + Vite + TypeScript, Tailwind CSS, dan shadcn/ui-style components.
+
 ```bash
 cd frontend
 npm install
@@ -28,6 +30,12 @@ npm run dev
 ```
 
 Frontend lokal berjalan di `http://127.0.0.1:5173` atau port Vite berikutnya.
+
+Backend deploy dipakai sebagai default:
+
+```text
+https://simplex-optimazation-finaltask.onrender.com
+```
 
 Untuk mengganti backend API:
 
@@ -56,7 +64,3 @@ Jangan commit:
 - log lokal Vite
 
 Pastikan `git status` hanya berisi file source dan dokumen yang memang ingin dipush.
-
-## Catatan Keamanan
-
-`backend/be.py` saat ini masih menyimpan URL Google Apps Script untuk write ke spreadsheet. Jika repository akan dibuat public, pertimbangkan untuk memindahkan URL tersebut ke environment variable di backend/deployment agar endpoint write tidak terekspos di source code.

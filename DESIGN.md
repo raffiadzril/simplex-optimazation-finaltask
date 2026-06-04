@@ -1,163 +1,89 @@
----
-name: Optimasi Produksi Bakery
-description: Indonesian academic dashboard for bakery simplex optimization and data management.
-colors:
-  ink: "#2f261f"
-  muted: "#74665d"
-  surface: "#ffffff"
-  surface-warm: "#fffaf5"
-  app-bg: "#f8f3ee"
-  app-bg-deep: "#efe3d8"
-  border: "#e4d8cc"
-  border-strong: "#d1bdab"
-  primary: "#9a4f1f"
-  primary-dark: "#6f3515"
-  primary-soft: "#fff0e3"
-  accent: "#c98a2e"
-  accent-soft: "#fff7df"
-  success: "#2f7a4a"
-  success-soft: "#e9f6ed"
-  warning: "#a7651b"
-  warning-soft: "#fff4d8"
-  danger: "#b44a3b"
-  danger-soft: "#fff0eb"
-typography:
-  headline:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    fontSize: "1.28rem"
-    fontWeight: 760
-    lineHeight: 1.2
-    letterSpacing: "0"
-  title:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    fontSize: "1rem"
-    fontWeight: 760
-    lineHeight: 1.25
-    letterSpacing: "0"
-  body:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    fontSize: "1rem"
-    fontWeight: 580
-    lineHeight: 1.5
-    letterSpacing: "0"
-  label:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    fontSize: "0.82rem"
-    fontWeight: 750
-    lineHeight: 1.2
-    letterSpacing: "0"
-rounded:
-  sm: "6px"
-  md: "8px"
-  lg: "12px"
-  pill: "999px"
-spacing:
-  xs: "4px"
-  sm: "8px"
-  md: "12px"
-  lg: "16px"
-  xl: "20px"
-  xxl: "40px"
-shadow:
-  sm: "0 1px 2px rgba(59, 38, 23, 0.08)"
-  md: "0 10px 28px rgba(59, 38, 23, 0.12)"
-  modal: "0 22px 70px rgba(59, 38, 23, 0.26)"
-components:
-  button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.surface}"
-    rounded: "{rounded.md}"
-    padding: "0 14px"
-    height: "38px"
-  panel:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "16px"
-  input:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.md}"
-    padding: "0 11px"
-    height: "38px"
----
-
 # Design System: Optimasi Produksi Bakery
 
 ## 1. Overview
 
-**Creative North Star: "The Optimization Calculation Board"**
+The interface is a clean academic dashboard for a bakery production optimization calculation. It helps an evaluator read the algorithm result, inspect the input data, understand the OR formulation, and safely update the data source through the deployed API.
 
-The interface is a clean dashboard for a bakery production optimization calculation. It should help an evaluator read the algorithm result, inspect the input data, and understand the interpretation without adding product-commercial framing.
+The visual tone is restrained bakery-academic: warm work surfaces, crisp borders, compact data panels, espresso/cocoa primary actions, and caramel highlights. The bakery mood is carried by color and serif display moments, not by decorative illustrations.
 
-**Key Characteristics:**
-- Warm bakery context used lightly, with neutral white work surfaces.
-- Clear academic layout for result, input data, and interpretation.
-- Compact metric cards, simple tabs, and restrained panels.
-- Tables and charts explain the model before prose does.
-- Icons support actions, reloads, edits, and destructive actions.
+## 2. Color Tokens
 
-## 2. Colors
+Use OKLCH CSS custom properties in `frontend/src/index.css`.
 
-The palette uses bakery warmth without turning the dashboard into decoration.
+- `--background: oklch(0.985 0.012 82)`
+- `--foreground: oklch(0.22 0.035 48)`
+- `--muted: oklch(0.94 0.028 78)`
+- `--muted-foreground: oklch(0.42 0.035 52)`
+- `--card: oklch(0.998 0.003 82)`
+- `--border: oklch(0.84 0.035 72)`
+- `--primary: oklch(0.43 0.105 45)`
+- `--primary-foreground: oklch(1 0 0)`
+- `--accent: oklch(0.66 0.13 68)`
+- `--accent-foreground: oklch(0.18 0.035 45)`
+- `--success: oklch(0.46 0.10 145)`
+- `--warning: oklch(0.64 0.14 68)`
+- `--destructive: oklch(0.52 0.16 25)`
 
-### Primary
-- **Cocoa Brown**: Primary actions, active navigation, chart bars, and key result accents.
-- **Deep Cocoa**: Hover state and strong emphasis.
-- **Cream Highlight**: Soft background for recommendation cards and active chips.
-
-### Secondary
-- **Caramel Accent**: Used sparingly in usage bars and warm highlights.
-- **Warm Paper**: Application background.
-- **Panel White**: Tables, metric cards, modals, and main content panels.
-
-### Semantic
-Green, amber, and red are reserved for success, warning, and error states.
+Primary is reserved for main actions and active state. Accent is reserved for caramel highlights, model/process emphasis, and selected badges.
 
 ## 3. Typography
 
-The system uses an Inter-compatible sans stack. Size stays fixed in rem units so dense dashboard content remains predictable on laptop and mobile.
+Use Inter/system sans through Tailwind for operational UI. Use a serif stack (`Georgia, Cambria, Times New Roman, ui-serif`) only for display moments: the page title and the main result number.
 
-### Hierarchy
-- **Headline**: Section titles and dashboard headings.
-- **Title**: Panel titles and compact table headings.
-- **Body**: Table cells, form values, and operational copy.
-- **Label**: Metric labels, form labels, status text, and table headers.
+- Page title: 36px, serif, 700 weight, tight line height.
+- Main result number: serif, large, tabular-feeling emphasis.
+- Section title: 20px, 700 weight.
+- Card title: 16px, 700 weight.
+- Body/table text: 14px to 15px, 450 to 550 weight.
+- Labels: 12px to 13px, 650 weight.
 
-## 4. Elevation
+## 4. Layout
 
-Normal dashboard surfaces use a border and a very small shadow. Modals use the larger modal shadow to separate them from the backdrop.
+The app is a single dashboard shell:
+
+- Header with title, data status, reload action.
+- Responsive summary strip.
+- Main shadcn tabs.
+- Content panels using `Card`, `Table`, `Sheet`, `Dialog`, `Alert`, `Badge`, `Skeleton`, and `Tooltip`.
+
+Tabs:
+
+- Hasil Optimasi
+- Model OR
+- Analisis Bahan
+- Data Bahan
+- Data Resep
+- Pengaturan
+
+Cards use 8px radius. Avoid nested card structures; use grouped rows, tables, or section dividers inside panels.
 
 ## 5. Components
 
-### Header
-The header uses a cocoa gradient and keeps the app identity clear without becoming a marketing hero.
+- Buttons: shadcn-style variants for primary, outline, ghost, destructive.
+- Tables: desktop table layout with responsive stacked rows on small screens.
+- Sheets: right-side drawers for add/edit ingredient and recipe forms.
+- Dialogs: confirmation for delete and reload actions.
+- Toasts: concise feedback after create, update, delete, reload, optimize, and margin update.
+- Skeletons: used for initial result and table loading.
+- Badges: solver status, data status, resource status, process steps.
 
-### Tabs
-Tabs use a simple segmented control: warm container, white active item, icon and label.
+## 6. Motion
 
-### Metrics
-Metric cards are compact, readable, and stable. Values use tabular-friendly spacing and never depend on large decorative type.
+Motion is limited to state feedback: drawer/dialog entrance, toast appearance, and loading spinners. Respect `prefers-reduced-motion`.
 
-### Result Panels
-The recommendation and explanation areas should make the solver result understandable at a glance without adding analytics that are not already present in the data.
+## 7. Do and Do Not
 
-### Tables
-Desktop tables remain compact. On mobile they transform into stacked rows with stable label/value columns to prevent text overlap.
+Do:
 
-## 6. Do's and Don'ts
+- Show optimal result, model formulation, constraints, and ingredient usage.
+- Keep Indonesian UI copy precise and short.
+- Use icons only where they clarify actions.
+- Keep forms predictable and validation messages explicit.
 
-### Do:
-- **Do** lead with optimal production, profit, solver status, and ingredient usage.
-- **Do** preserve readable Indonesian labels.
-- **Do** use brown/caramel lightly as bakery context and semantic colors only for state.
-- **Do** keep CRUD controls compact and predictable.
-- **Do** allow long product or ingredient names to wrap safely on mobile.
+Do not:
 
-### Don't:
-- **Don't** change solver, API contracts, formulas, or backend data shape.
-- **Don't** frame the interface as a commercial product or add workflow features not requested by the calculation dashboard.
-- **Don't** add decorative bakery illustrations that compete with the dashboard.
-- **Don't** hide state behind color alone.
-- **Don't** put cards inside cards.
-- **Don't** let tables become spreadsheet clutter; alignment and scanning matter first.
+- Fake simplex tableau iterations.
+- Add decorative bakery illustrations.
+- Hide persistent writes behind unclear controls.
+- Use color alone for status.
+- Let long ingredient or product names overflow on mobile.

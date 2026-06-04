@@ -1,14 +1,3 @@
-export type TabKey = "optimasi" | "bahan" | "resep" | "parameter";
-
-export type DataStatus = {
-  bahan_loaded: boolean;
-  resep_loaded: boolean;
-  parameter_loaded: boolean;
-  last_update: string;
-  total_produk: number;
-  total_bahan: number;
-};
-
 export type Bahan = {
   nama_bahan: string;
   harga: number;
@@ -42,9 +31,13 @@ export type Parameter = {
   nilai: number;
 };
 
-export type ParameterInput = {
-  parameter: string;
-  nilai: number;
+export type DataStatus = {
+  bahan_loaded: boolean;
+  resep_loaded: boolean;
+  parameter_loaded: boolean;
+  last_update: string;
+  total_produk: number;
+  total_bahan: number;
 };
 
 export type OptimizationResult = {
@@ -59,8 +52,31 @@ export type OptimizationResult = {
 
 export type IngredientUsage = {
   bahan: string;
-  stok: number;
-  terpakai: number;
-  sisa: number;
-  persentase: number;
+  stockGram: number;
+  usedGram: number;
+  remainingGram: number;
+  percentage: number;
+  isBinding: boolean;
 };
+
+export type OrModel = {
+  variables: Array<{
+    symbol: string;
+    product: string;
+    value: number;
+  }>;
+  objective: string;
+  constraints: Array<{
+    bahan: string;
+    expression: string;
+    rhsGram: number;
+  }>;
+};
+
+export type TabKey =
+  | "hasil"
+  | "model"
+  | "analisis"
+  | "bahan"
+  | "resep"
+  | "pengaturan";
