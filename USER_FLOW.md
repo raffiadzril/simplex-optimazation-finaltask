@@ -6,7 +6,7 @@ Dashboard membantu pengguna memahami hasil optimasi produksi bakery berdasarkan 
 
 ## Struktur Layar
 
-- Header: judul dashboard, status data, tombol muat ulang.
+- Header: judul dashboard, croissant mark, tombol optimasi, dan tombol muat ulang.
 - Ringkasan: update terakhir, total produk, total bahan, margin.
 - Tabs utama:
   - Hasil Optimasi
@@ -62,11 +62,16 @@ Model OR tidak menampilkan iterasi simplex palsu. UI menjelaskan proses yang ben
 ## Flow CRUD Resep
 
 1. Pengguna membuka tab Data Resep.
-2. Pengguna dapat memfilter resep berdasarkan produk.
-3. Pengguna memilih Tambah atau Edit, lalu drawer form terbuka.
-4. Sistem memvalidasi nama produk, bahan, dan jumlah gram.
-5. Setelah simpan berhasil, sistem mengambil ulang data dan optimasi.
-6. Untuk hapus, sistem menampilkan dialog konfirmasi terlebih dahulu.
+2. Pengguna melihat ringkasan resep: jumlah produk tampil, jumlah baris resep, dan rata-rata gram per unit.
+3. Pengguna dapat memilih mode tampilan:
+   - Per Produk: resep dikelompokkan sebagai daftar bahan per produk.
+   - Matriks: bahan menjadi baris, produk menjadi kolom, dan sel menunjukkan gram per unit.
+   - Detail Baris: tabel CRUD mentah untuk pemeriksaan administratif.
+4. Pengguna dapat memfilter resep berdasarkan produk.
+5. Pengguna memilih Tambah atau Edit, lalu drawer form terbuka.
+6. Sistem memvalidasi nama produk, bahan, dan jumlah gram.
+7. Setelah simpan berhasil, sistem mengambil ulang data dan optimasi.
+8. Untuk hapus, sistem menampilkan dialog konfirmasi terlebih dahulu.
 
 ## Flow Pengaturan
 
@@ -89,5 +94,6 @@ Model OR tidak menampilkan iterasi simplex palsu. UI menjelaskan proses yang ben
 - Tab pertama cukup untuk memahami hasil optimasi.
 - Tab Model OR cukup untuk menjelaskan proses kepada evaluator UAS.
 - Analisis Bahan menunjukkan stok terpakai, sisa, dan indikator pembatas.
+- Data Resep menampilkan resep sebagai grouping produk dan matriks koefisien, bukan hanya tabel mentah.
 - CRUD bahan, CRUD resep, margin update, reload data, dan optimize memiliki feedback.
 - Layout tetap terbaca di desktop dan mobile.

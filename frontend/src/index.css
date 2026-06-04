@@ -4,27 +4,35 @@
 
 @layer base {
   :root {
-    --background: 0.985 0.012 82;
-    --foreground: 0.22 0.035 48;
-    --card: 0.998 0.003 82;
-    --card-foreground: 0.22 0.035 48;
-    --popover: 0.998 0.003 82;
-    --popover-foreground: 0.22 0.035 48;
-    --primary: 0.43 0.105 45;
-    --primary-foreground: 1 0 0;
-    --secondary: 0.93 0.035 72;
-    --secondary-foreground: 0.26 0.04 48;
-    --muted: 0.94 0.028 78;
-    --muted-foreground: 0.42 0.035 52;
-    --accent: 0.66 0.13 68;
-    --accent-foreground: 0.18 0.035 45;
+    --background: 0.9885 0.0048 81.9;
+    --foreground: 0.2365 0.0326 54.4;
+    --card: 0.998 0.002 82;
+    --card-foreground: 0.2365 0.0326 54.4;
+    --popover: 0.998 0.002 82;
+    --popover-foreground: 0.2365 0.0326 54.4;
+    --primary: 0.8058 0.0607 65;
+    --primary-foreground: 0.2365 0.0326 54.4;
+    --secondary: 0.9138 0.0196 62.2;
+    --secondary-foreground: 0.2365 0.0326 54.4;
+    --muted: 0.955 0.012 72;
+    --muted-foreground: 0.43 0.034 54;
+    --accent: 0.4888 0.0647 50.8;
+    --accent-foreground: 0.9885 0.0048 81.9;
     --destructive: 0.52 0.16 25;
     --destructive-foreground: 1 0 0;
-    --border: 0.84 0.035 72;
-    --input: 0.82 0.035 72;
-    --ring: 0.56 0.11 58;
+    --border: 0.855 0.022 62;
+    --input: 0.82 0.024 62;
+    --ring: 0.4888 0.0647 50.8;
     --success: 0.46 0.10 145;
     --warning: 0.64 0.14 68;
+    --header-glow: 0.8058 0.0607 65;
+    --header-bg-start: 0.9885 0.0048 81.9;
+    --header-bg-end: 0.9138 0.0196 62.2;
+    --header-foreground: 0.2365 0.0326 54.4;
+    --header-muted: 0.43 0.034 54;
+    --mark-background: 0.8058 0.0607 65;
+    --mark-foreground: 0.2365 0.0326 54.4;
+    --mark-shadow: 0.4888 0.0647 50.8;
     --radius: 0.5rem;
   }
 
@@ -50,19 +58,26 @@
 @layer components {
   .bakery-shell {
     background:
-      linear-gradient(180deg, oklch(0.985 0.012 82), oklch(0.945 0.035 76));
+      radial-gradient(circle at 8% 5%, oklch(var(--primary) / 0.18), transparent 24rem),
+      radial-gradient(circle at 90% 10%, oklch(var(--accent) / 0.07), transparent 26rem),
+      linear-gradient(180deg, oklch(var(--background)), oklch(var(--secondary)));
   }
 
   .bakery-header {
     background:
-      radial-gradient(circle at 12% 0%, oklch(0.58 0.12 62 / 0.34), transparent 30%),
-      linear-gradient(135deg, oklch(0.28 0.055 45), oklch(0.20 0.04 38));
-    color: oklch(0.985 0.012 82);
+      radial-gradient(circle at 12% 0%, oklch(var(--header-glow) / 0.34), transparent 30%),
+      linear-gradient(135deg, oklch(var(--header-bg-start)), oklch(var(--header-bg-end)));
+    color: oklch(var(--header-foreground));
+  }
+
+  .bakery-header--bar {
+    background:
+      linear-gradient(180deg, oklch(var(--header-bg-start)), oklch(var(--header-bg-end)));
   }
 
   .bakery-header p,
   .bakery-header .text-muted-foreground {
-    color: oklch(0.86 0.045 75);
+    color: oklch(var(--header-muted));
   }
 
   .display-serif {
@@ -71,19 +86,51 @@
   }
 
   .bakery-mark {
-    background: oklch(0.70 0.14 68);
-    color: oklch(0.20 0.04 38);
-    box-shadow: inset 0 -2px 0 oklch(0.42 0.09 45 / 0.28);
+    background: oklch(var(--mark-background));
+    color: oklch(var(--mark-foreground));
+    box-shadow: inset 0 -2px 0 oklch(var(--mark-shadow) / 0.28);
   }
 
   .result-panel {
     background:
-      linear-gradient(135deg, oklch(0.37 0.085 44), oklch(0.25 0.055 40));
+      radial-gradient(circle at 92% 12%, oklch(var(--background) / 0.55), transparent 14rem),
+      linear-gradient(135deg, oklch(var(--primary)), oklch(var(--secondary)));
+  }
+
+  .fact-card {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .fact-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: oklch(var(--accent));
+  }
+
+  .metric-card {
+    background:
+      linear-gradient(180deg, oklch(var(--card)), oklch(var(--background)));
+  }
+
+  .process-card {
+    background:
+      linear-gradient(180deg, oklch(var(--card)), oklch(var(--background)));
+  }
+
+  .section-heading-title {
+    color: oklch(var(--accent));
+  }
+
+  .table-accent tbody tr:hover {
+    background: oklch(var(--secondary) / 0.72);
   }
 
   .equation-block {
     @apply overflow-x-auto rounded-lg border p-4 font-mono text-sm font-semibold leading-7 text-foreground;
-    background: oklch(0.955 0.035 76);
+    background: oklch(var(--secondary) / 0.72);
   }
 
   .stacked-table td,

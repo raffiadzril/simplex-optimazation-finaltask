@@ -1,8 +1,6 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
-  BookOpenCheck,
-  CheckCircle2,
   CircleAlert,
   Croissant,
   Edit3,
@@ -429,40 +427,37 @@ export default function App() {
   return (
     <TooltipProvider delayDuration={180}>
       <div className="bakery-shell min-h-screen text-foreground">
-        <header className="bakery-header border-b border-primary/20">
-          <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-            <div className="grid max-w-3xl gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
-              <div className="bakery-mark hidden h-14 w-14 items-center justify-center rounded-lg sm:flex">
-                <Croissant className="h-7 w-7" />
+        <header className="bakery-header bakery-header--bar border-b border-border">
+          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="bakery-mark flex h-14 w-14 shrink-0 items-center justify-center rounded-lg">
+                  <Croissant className="h-7 w-7" />
+                </div>
+                <h1 className="display-serif text-3xl font-bold tracking-normal sm:text-4xl">
+                  Optimasi Produksi Bakery
+                </h1>
               </div>
-              <div>
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  className="min-h-11 border-accent/70 bg-background text-foreground hover:bg-secondary hover:text-foreground"
+                  variant="outline"
+                  onClick={() => void rerunOptimization()}
+                  disabled={optimizing || loading}
+                >
+                  {optimizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sigma className="h-4 w-4" />}
+                  Jalankan optimasi
+                </Button>
+                <Button className="min-h-11 bg-accent text-accent-foreground hover:bg-accent/90" onClick={() => setReloadOpen(true)} disabled={loading || saving}>
+                  <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+                  Muat ulang data
+                </Button>
               </div>
-              <h1 className="display-serif text-3xl font-bold tracking-normal sm:text-4xl">
-                Optimasi Produksi Bakery
-              </h1>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                className="border-accent/60 bg-background text-foreground hover:bg-secondary hover:text-foreground"
-                variant="outline"
-                onClick={() => void rerunOptimization()}
-                disabled={optimizing || loading}
-              >
-                {optimizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sigma className="h-4 w-4" />}
-                Jalankan optimasi
-              </Button>
-              <Button onClick={() => setReloadOpen(true)} disabled={loading || saving}>
-                <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-                Muat ulang data
-              </Button>
             </div>
           </div>
         </header>
 
-        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Ringkasan data aktif">
             <Fact label="Update terakhir" value={formatDate(status?.last_update)} />
             <Fact label="Total produk" value={formatNumber(status?.total_produk)} />
@@ -578,28 +573,9 @@ export default function App() {
   );
 }
 
-function StatusBadge({ status, error }: { status: DataStatus | null; error: string | null }) {
-  if (error) {
-    return (
-      <Badge variant="destructive">
-        <CircleAlert className="h-3.5 w-3.5" />
-        Backend error
-      </Badge>
-    );
-  }
-
-  const ready = status?.bahan_loaded && status.resep_loaded && status.parameter_loaded;
-  return (
-    <Badge variant={ready ? "success" : "warning"}>
-      {ready ? <CheckCircle2 className="h-3.5 w-3.5" /> : <CircleAlert className="h-3.5 w-3.5" />}
-      {ready ? "Data siap" : "Data belum lengkap"}
-    </Badge>
-  );
-}
-
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <Card>
+    <Card className="fact-card">
       <CardContent className="p-4">
         <p className="text-xs font-semibold text-muted-foreground">{label}</p>
         <p className="mt-1 text-lg font-bold">{value}</p>
@@ -631,7 +607,7 @@ function ResultTab({
       <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
         <Card className="overflow-hidden">
           <CardContent className="p-0">
-            <div className="result-panel border-b px-5 py-5 text-primary-foreground">
+            <div className="result-panel border-b px-5 py-5 text-foreground">
               <p className="text-sm font-semibold opacity-90">Keputusan produksi optimal</p>
               {loading && !optimization ? (
                 <Skeleton className="mt-4 h-16 w-64 bg-white/25" />
@@ -692,7 +668,7 @@ function ResultTab({
                     <XAxis dataKey="name" angle={-20} textAnchor="end" interval={0} height={58} tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
                     <ChartTooltip formatter={(value) => [`${formatNumber(Number(value))} unit`, "Produksi"]} />
-                    <Bar dataKey="jumlah" fill="oklch(var(--primary))" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="jumlah" fill="oklch(var(--accent))" radius={[6, 6, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -717,7 +693,7 @@ function ProductTable({
         <CardTitle>Ringkasan produk</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table className="stacked-table">
+        <Table className="stacked-table table-accent">
           <TableHeader>
             <TableRow>
               <TableHead>Produk</TableHead>
@@ -761,7 +737,7 @@ function ModelTab({
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-4">
           {["Data dimuat", "Model dibentuk", "Solver dijalankan", "Solusi optimal ditemukan"].map((step, index) => (
-            <div key={step} className="rounded-lg border p-4">
+            <div key={step} className="process-card rounded-lg border p-4">
               <Badge variant={optimization || index < 3 ? "success" : "muted"}>{index + 1}</Badge>
               <p className="mt-3 font-semibold">{step}</p>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -816,7 +792,7 @@ function ModelTab({
           <CardTitle>Batasan bahan</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table className="stacked-table">
+          <Table className="stacked-table table-accent">
             <TableHeader>
               <TableRow>
                 <TableHead>Bahan</TableHead>
@@ -875,7 +851,7 @@ function AnalysisTab({ loading, usageRows }: { loading: boolean; usageRows: Retu
           <CardTitle>Pemakaian stok</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table className="stacked-table">
+          <Table className="stacked-table table-accent">
             <TableHeader>
               <TableRow>
                 <TableHead>Bahan</TableHead>
@@ -929,7 +905,7 @@ function BahanTab({
       description={`${bahan.length} bahan aktif. Stok disimpan dalam kg dan ditampilkan sebagai gram di model OR.`}
       action={<Button onClick={onCreate} disabled={loading || saving}><Plus className="h-4 w-4" />Tambah bahan</Button>}
     >
-      <Table className="stacked-table">
+      <Table className="stacked-table table-accent">
         <TableHeader>
           <TableRow>
             <TableHead>Nama bahan</TableHead>
@@ -988,6 +964,49 @@ function ResepTab({
   onEdit: (item: Resep) => void;
   onDelete: (item: Resep) => void;
 }) {
+  const [view, setView] = useState<"produk" | "matriks" | "detail">("produk");
+  const hargaByBahan = useMemo(
+    () => new Map(bahan.map((item) => [item.nama_bahan, item.harga])),
+    [bahan]
+  );
+  const groupedRecipes = useMemo(() => {
+    const groups = new Map<string, Resep[]>();
+    for (const item of resep) {
+      groups.set(item.produk, [...(groups.get(item.produk) ?? []), item]);
+    }
+
+    return [...groups.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([produk, items]) => {
+        const sortedItems = [...items].sort((a, b) => b.jumlah_gram - a.jumlah_gram || a.bahan.localeCompare(b.bahan));
+        const totalGram = sortedItems.reduce((sum, item) => sum + item.jumlah_gram, 0);
+        const estimatedCost = sortedItems.reduce(
+          (sum, item) => sum + (item.jumlah_gram / 1000) * (hargaByBahan.get(item.bahan) ?? 0),
+          0
+        );
+
+        return {
+          produk,
+          items: sortedItems,
+          totalGram,
+          estimatedCost,
+          maxGram: Math.max(...sortedItems.map((item) => item.jumlah_gram), 0)
+        };
+      });
+  }, [hargaByBahan, resep]);
+  const matrixProducts = groupedRecipes.map((group) => group.produk);
+  const matrixIngredients = useMemo(
+    () => [...new Set(resep.map((item) => item.bahan))].sort((a, b) => a.localeCompare(b)),
+    [resep]
+  );
+  const recipeValueByCell = useMemo(
+    () => new Map(resep.map((item) => [`${item.bahan}::${item.produk}`, item.jumlah_gram])),
+    [resep]
+  );
+  const averageGram = groupedRecipes.length
+    ? groupedRecipes.reduce((sum, group) => sum + group.totalGram, 0) / groupedRecipes.length
+    : 0;
+
   return (
     <DataSection
       title="Data Resep"
@@ -1012,30 +1031,224 @@ function ResepTab({
         </div>
       }
     >
-      <Table className="stacked-table">
+      <div className="grid gap-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <RecipeStat label="Produk tampil" value={formatNumber(groupedRecipes.length)} />
+          <RecipeStat label="Baris resep tampil" value={formatNumber(resep.length)} />
+          <RecipeStat label="Rata-rata gram/unit" value={`${formatNumber(averageGram, 1)} gram`} />
+        </div>
+
+        <div className="flex w-full flex-col gap-2 rounded-lg border bg-card p-1 sm:w-fit sm:flex-row" aria-label="Mode tampilan resep">
+          <RecipeViewButton active={view === "produk"} onClick={() => setView("produk")}>
+            Per Produk
+          </RecipeViewButton>
+          <RecipeViewButton active={view === "matriks"} onClick={() => setView("matriks")}>
+            Matriks
+          </RecipeViewButton>
+          <RecipeViewButton active={view === "detail"} onClick={() => setView("detail")}>
+            Detail Baris
+          </RecipeViewButton>
+        </div>
+
+        {view === "produk" ? (
+          <RecipeProductView groups={groupedRecipes} saving={saving} onEdit={onEdit} onDelete={onDelete} />
+        ) : null}
+
+        {view === "matriks" ? (
+          <RecipeMatrixView
+            products={matrixProducts}
+            ingredients={matrixIngredients}
+            valueByCell={recipeValueByCell}
+          />
+        ) : null}
+
+        {view === "detail" ? (
+          <RecipeDetailTable resep={resep} saving={saving} onEdit={onEdit} onDelete={onDelete} />
+        ) : null}
+      </div>
+    </DataSection>
+  );
+}
+
+function RecipeStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-bold">{value}</p>
+    </div>
+  );
+}
+
+function RecipeViewButton({
+  active,
+  children,
+  onClick
+}: {
+  active: boolean;
+  children: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`min-h-10 rounded-md px-3 text-sm font-semibold transition-colors ${
+        active
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+      }`}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function RecipeProductView({
+  groups,
+  saving,
+  onEdit,
+  onDelete
+}: {
+  groups: Array<{
+    produk: string;
+    items: Resep[];
+    totalGram: number;
+    estimatedCost: number;
+    maxGram: number;
+  }>;
+  saving: boolean;
+  onEdit: (item: Resep) => void;
+  onDelete: (item: Resep) => void;
+}) {
+  if (!groups.length) {
+    return <EmptyState text="Belum ada resep untuk filter ini." />;
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {groups.map((group) => (
+        <div key={group.produk} className="rounded-lg border bg-card p-4">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+            <div>
+              <h3 className="text-base font-bold">{titleCase(group.produk)}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {formatNumber(group.items.length)} bahan, {formatNumber(group.totalGram, 1)} gram per unit
+              </p>
+            </div>
+            <Badge variant="secondary">{formatCurrency(group.estimatedCost)} / unit</Badge>
+          </div>
+
+          <div className="mt-4 grid gap-3">
+            {group.items.map((item) => {
+              const percentage = group.maxGram > 0 ? (item.jumlah_gram / group.maxGram) * 100 : 0;
+
+              return (
+                <div key={`${item.produk}-${item.bahan}`} className="rounded-md border bg-background p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="truncate text-sm font-semibold">{titleCase(item.bahan)}</p>
+                        <p className="shrink-0 text-sm font-bold">{formatNumber(item.jumlah_gram, 1)} g</p>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className="h-full rounded-full bg-accent"
+                          style={{ width: `${Math.max(percentage, 6)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <RowActions disabled={saving} onEdit={() => onEdit(item)} onDelete={() => onDelete(item)} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RecipeMatrixView({
+  products,
+  ingredients,
+  valueByCell
+}: {
+  products: string[];
+  ingredients: string[];
+  valueByCell: Map<string, number>;
+}) {
+  if (!products.length || !ingredients.length) {
+    return <EmptyState text="Belum ada resep untuk filter ini." />;
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg border">
+      <Table className="min-w-[720px] table-accent">
         <TableHeader>
           <TableRow>
-            <TableHead>Produk</TableHead>
             <TableHead>Bahan</TableHead>
-            <TableHead className="text-right">Jumlah gram</TableHead>
-            <TableHead className="text-right">Aksi</TableHead>
+            {products.map((produk) => (
+              <TableHead key={produk} className="text-right">{titleCase(produk)}</TableHead>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {resep.map((item) => (
-            <TableRow key={`${item.produk}-${item.bahan}`}>
-              <TableCell data-label="Produk" className="font-semibold">{titleCase(item.produk)}</TableCell>
-              <TableCell data-label="Bahan">{titleCase(item.bahan)}</TableCell>
-              <TableCell data-label="Jumlah gram" className="text-right">{formatNumber(item.jumlah_gram, 2)}</TableCell>
-              <TableCell data-label="Aksi" className="text-right">
-                <RowActions disabled={saving} onEdit={() => onEdit(item)} onDelete={() => onDelete(item)} />
-              </TableCell>
+          {ingredients.map((bahan) => (
+            <TableRow key={bahan}>
+              <TableCell className="font-semibold">{titleCase(bahan)}</TableCell>
+              {products.map((produk) => {
+                const value = valueByCell.get(`${bahan}::${produk}`) ?? 0;
+                return (
+                  <TableCell key={`${bahan}-${produk}`} className="text-right">
+                    {value > 0 ? `${formatNumber(value, 1)} g` : "-"}
+                  </TableCell>
+                );
+              })}
             </TableRow>
           ))}
-          {!resep.length ? <EmptyRow colSpan={4} text="Belum ada resep untuk filter ini." /> : null}
         </TableBody>
       </Table>
-    </DataSection>
+    </div>
+  );
+}
+
+function RecipeDetailTable({
+  resep,
+  saving,
+  onEdit,
+  onDelete
+}: {
+  resep: Resep[];
+  saving: boolean;
+  onEdit: (item: Resep) => void;
+  onDelete: (item: Resep) => void;
+}) {
+  return (
+    <Table className="stacked-table table-accent">
+      <TableHeader>
+        <TableRow>
+          <TableHead>Produk</TableHead>
+          <TableHead>Bahan</TableHead>
+          <TableHead className="text-right">Jumlah gram</TableHead>
+          <TableHead className="text-right">Aksi</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {resep.map((item) => (
+          <TableRow key={`${item.produk}-${item.bahan}`}>
+            <TableCell data-label="Produk" className="font-semibold">{titleCase(item.produk)}</TableCell>
+            <TableCell data-label="Bahan">{titleCase(item.bahan)}</TableCell>
+            <TableCell data-label="Jumlah gram" className="text-right">{formatNumber(item.jumlah_gram, 2)}</TableCell>
+            <TableCell data-label="Aksi" className="text-right">
+              <RowActions disabled={saving} onEdit={() => onEdit(item)} onDelete={() => onDelete(item)} />
+            </TableCell>
+          </TableRow>
+        ))}
+        {!resep.length ? <EmptyRow colSpan={4} text="Belum ada resep untuk filter ini." /> : null}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -1065,7 +1278,7 @@ function SettingsTab({
           <CardTitle>Parameter optimasi</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table className="stacked-table">
+          <Table className="stacked-table table-accent">
             <TableHeader>
               <TableRow>
                 <TableHead>Parameter</TableHead>
@@ -1132,7 +1345,7 @@ function DataSection({ title, description, action, children }: { title: string; 
     <section className="grid gap-5">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <h2 className="text-xl font-bold">{title}</h2>
+          <h2 className="section-heading-title text-xl font-bold">{title}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
         {action}
@@ -1146,7 +1359,7 @@ function DataSection({ title, description, action, children }: { title: string; 
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-background p-4">
+    <div className="metric-card rounded-lg border p-4">
       <p className="text-xs font-semibold text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-bold">{value}</p>
     </div>
