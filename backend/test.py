@@ -2,6 +2,7 @@ from backend.be import (
     load_bahan_dari_sheets, 
     load_resep_dari_sheet, 
     load_parameter_dari_sheets,
+    load_produk_dari_sheets,
     jalankan_optimasi,
     data_store
 )
@@ -18,11 +19,13 @@ def test_jalankan_optimasi_dari_sheets():
     load_bahan_dari_sheets()
     load_resep_dari_sheet()
     load_parameter_dari_sheets()
+    load_produk_dari_sheets()
     
     print(f"\n2. Data loaded:")
     print(f"   - Bahan: {len(data_store.harga_bahan)} items")
     print(f"   - Resep: {len(data_store.resep)} produk")
     print(f"   - Parameter: {len(data_store.parameter)} items")
+    print(f"   - Produk/Min Produksi: {len(data_store.minimal_produksi)} items")
     
     # Ambil margin dari sheets, atau gunakan default
     margin = data_store.parameter.get('margin', 0.0)
@@ -43,7 +46,7 @@ def test_jalankan_optimasi_dari_sheets():
     
     # Jalankan optimasi
     print("\n3. Menjalankan optimasi...")
-    hasil = jalankan_optimasi(data_store.harga_bahan, data_store.stok_bahan, data_store.resep, margin)
+    hasil = jalankan_optimasi(data_store.harga_bahan, data_store.stok_bahan, data_store.resep, margin, data_store.minimal_produksi)
     
     # Tampilkan hasil
     print(f"\n4. HASIL OPTIMASI:")

@@ -94,10 +94,23 @@ export function buildOrModel(
     };
   });
 
+  const minProductionConstraints = products
+    .map((product) => {
+      const minimal = optimization?.minimal_produksi?.[product] ?? 0;
+      return {
+        produk: product,
+        symbol: symbolByProduct.get(product)!,
+        minimal,
+        value: optimization?.jumlah_produksi_optimal[product] ?? 0
+      };
+    })
+    .filter((item) => item.minimal > 0);
+
   return {
     variables,
     objective: objectiveTerms.length ? `Maksimalkan Z = ${objectiveTerms.join(" + ")}` : "Maksimalkan Z = -",
-    constraints
+    constraints,
+    minProductionConstraints
   };
 }
 

@@ -17,6 +17,11 @@ function doPost(e) {
     if (!sheet) {
       sheet = ss.getSheets()[2] || ss.getActiveSheet();
     }
+  } else if (target === "produk") {
+    sheet = ss.getSheetByName("produk");
+    if (!sheet) {
+      sheet = ss.getSheets()[3] || ss.getActiveSheet();
+    }
   } else {
     sheet = ss.getSheetByName("bahan");
     if (!sheet) {
@@ -92,6 +97,48 @@ function doPost(e) {
         }
       }
       return response("error", "Parameter tidak ditemukan");
+    }
+  } else if (target === "produk") {
+    if (action === "create") {
+      // Tambah baris baru produk
+      sheet.appendRow([
+        itemData.produk,
+        itemData.minimal_produksi
+      ]);
+      return response("success", "Produk berhasil ditambahkan");
+      
+    } else if (action === "update") {
+      // Update baris produk yang ada
+      var range = sheet.getRange("A:A");
+      var values = range.getValues();
+      
+      var oldProduk = itemData.produk_old.toLowerCase();
+      
+      for (var i = 1; i < values.length; i++) {
+        if (values[i][0].toString().toLowerCase() === oldProduk) {
+          sheet.getRange(i + 1, 1, 1, 2).setValues([[
+            itemData.produk_new,
+            itemData.minimal_produksi
+          ]]);
+          return response("success", "Produk berhasil diupdate");
+        }
+      }
+      return response("error", "Produk tidak ditemukan");
+      
+    } else if (action === "delete") {
+      // Hapus baris produk
+      var range = sheet.getRange("A:A");
+      var values = range.getValues();
+      
+      var name = itemData.produk.toLowerCase();
+      
+      for (var i = 1; i < values.length; i++) {
+        if (values[i][0].toString().toLowerCase() === name) {
+          sheet.deleteRow(i + 1);
+          return response("success", "Produk berhasil dihapus");
+        }
+      }
+      return response("error", "Produk tidak ditemukan");
     }
   } else {
     // target === "bahan"

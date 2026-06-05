@@ -5,7 +5,9 @@ import type {
   OptimizationResult,
   Parameter,
   Resep,
-  ResepInput
+  ResepInput,
+  Produk,
+  ProdukInput
 } from "@/types";
 
 export const API_BASE_URL =
@@ -95,5 +97,18 @@ export const api = {
     request<Parameter>(`/api/parameter/${encodePart(namaParameter)}`, {
       method: "PUT",
       body: JSON.stringify(payload)
-    })
+    }),
+  getProduk: () => request<Produk[]>("/api/produk"),
+  createProduk: (payload: ProdukInput) =>
+    request<Produk>("/api/produk", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  updateProduk: (namaProduk: string, payload: ProdukInput) =>
+    request<Produk>(`/api/produk/${encodePart(namaProduk)}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    }),
+  deleteProduk: (namaProduk: string) =>
+    request<void>(`/api/produk/${encodePart(namaProduk)}`, { method: "DELETE" })
 };

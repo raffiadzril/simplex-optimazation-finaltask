@@ -42,9 +42,10 @@ SHEET_ID = "1rj8Ayd35jzFpiMnMvlftJU8MlwuZgbulH3zH7mQ6e9A"
 GID_BAHAN = 0
 GID_RESEP = 1567387597
 GID_PARAMETER = 799126135
+GID_PRODUK = 1739691874
 
 # Google Apps Script Configuration (untuk write ke spreadsheet)
-GAS_BAHAN_URL = "https://script.google.com/macros/s/AKfycbxh3iAkQclYGm5aupVpt__wEersN-AHJxg0D8PojBpQz_xkVzR0LjUeXtuCnj_RI_s/exec"
+GAS_BAHAN_URL = "https://script.google.com/macros/s/AKfycbxkDalNBVR5aqdGXWFnLxqrB4Hec7N6oVaKbLiNwOflFKbVsiL4pofo7DDe1C315igoCg/exec"
 
 def get_sheet_url(gid: int):
     return f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
@@ -110,14 +111,26 @@ class OptimasiResponse(BaseModel):
     harga_produk: Dict[str, float]
     harga_produk_bulat: Dict[str, float]
     profit_per_produk: Dict[str, float]
+    minimal_produksi: Dict[str, int]
 
 class DataStatus(BaseModel):
     bahan_loaded: bool
     resep_loaded: bool
     parameter_loaded: bool
+    produk_loaded: bool
     last_update: str
     total_produk: int
     total_bahan: int
+
+class ProdukCreate(BaseModel):
+    produk: str
+    minimal_produksi: float
+
+class ProdukResponse(BaseModel):
+    produk: str
+    minimal_produksi: float
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 # ============ Model untuk CRUD Bahan ============
 class BahanCreate(BaseModel):
@@ -162,13 +175,16 @@ class DataStore:
         self.stok_bahan = {}
         self.resep = {}
         self.parameter = {}
+        self.minimal_produksi = {}
         self.last_update = None
         self.bahan_loaded = False
         self.resep_loaded = False
         self.parameter_loaded = False
+        self.produk_loaded = False
         # Storage untuk CRUD bahan (key: nama_bahan)
         self.bahan_list = {}  # Dict[str, dict]
         self.resep_list = {}
+        self.produk_list = {}
 
 data_store = DataStore()
 
@@ -282,11 +298,43 @@ def load_parameter_dari_sheets():
         data_store.parameter_loaded = False
         return False
 
+def load_produk_dari_sheets():
+    try:
+        url = get_sheet_url(GID_PRODUK)
+        print(f"Loading produk from: {url}")
+        df = pd.read_csv(url)
+        print(f"Columns found: {df.columns.tolist()}")
+
+        data_store.minimal_produksi = {}
+        data_store.produk_list = {}
+        now = datetime.now().isoformat()
+
+        for _, row in df.iterrows():
+            produk = row['produk'].strip().lower()
+            minimal = parse_indonesian_number(row['minimal_produksi'])
+            data_store.minimal_produksi[produk] = minimal
+            data_store.produk_list[produk] = {
+                "minimal_produksi": minimal,
+                "created_at": now,
+                "updated_at": now
+            }
+            print(f"{produk} | minimal_produksi: {minimal}")
+            
+        data_store.produk_loaded = True
+        print(f"Produk loaded: {len(data_store.minimal_produksi)} items")
+        return True
+    except Exception as e:
+        print(f"Error loading produk: {str(e)}")
+        tb.print_exc()
+        data_store.produk_loaded = False
+        return False
+
 def load_all_data():
     print("Loading Data from Google Sheets")
     load_bahan_dari_sheets()
     load_resep_dari_sheet()
     load_parameter_dari_sheets()
+    load_produk_dari_sheets()
     data_store.last_update = datetime.now().isoformat()
     print(f"Data loaded at {data_store.last_update}\n")
 
@@ -320,7 +368,7 @@ def hitung_profit(harga_bulat: Dict[str, float], biaya: Dict[str, float]) -> Dic
         profit[produk] = harga - biaya[produk]
     return profit
 
-def jalankan_optimasi(harga_bahan: Dict[str, float], stok_bahan: Dict[str, float], resep: Dict, margin: float):
+def jalankan_optimasi(harga_bahan: Dict[str, float], stok_bahan: Dict[str, float], resep: Dict, margin: float, minimal_produksi: Dict[str, int]):
     biaya = hitung_biaya_produk(harga_bahan, resep)
     harga_produk = hitung_harga_produk(biaya, margin)
     harga_bulat = hitung_harga_bulat(harga_produk)
@@ -346,6 +394,12 @@ def jalankan_optimasi(harga_bahan: Dict[str, float], stok_bahan: Dict[str, float
             for produk in produk_list
         ) <= stok_bahan[bahan]
 
+    # Constraints - minimal produksi
+    for produk in produk_list:
+        min_prod = minimal_produksi.get(produk, 0)
+        if min_prod > 0:
+            model += x[produk] >= min_prod
+
     model.solve()
 
     hasil_produksi = {produk: int (x[produk].varValue if x[produk].varValue is not None else 0) for produk in produk_list}
@@ -358,7 +412,8 @@ def jalankan_optimasi(harga_bahan: Dict[str, float], stok_bahan: Dict[str, float
         "biaya_produk": biaya,
         "harga_produk": harga_produk,
         "harga_produk_bulat": harga_bulat,
-        "profit_per_produk": profit
+        "profit_per_produk": profit,
+        "minimal_produksi": minimal_produksi
     }
 
 @app.get("/", tags=["Root"])
@@ -377,6 +432,7 @@ async def get_data_status():
         bahan_loaded=data_store.bahan_loaded,
         resep_loaded=data_store.resep_loaded,
         parameter_loaded=data_store.parameter_loaded,
+        produk_loaded=data_store.produk_loaded,
         last_update=data_store.last_update or "Not loaded yet",
         total_produk=len(data_store.resep),
         total_bahan=len(data_store.harga_bahan)
@@ -432,8 +488,10 @@ async def optimize():
         if not resep:
             raise HTTPException(status_code=400, detail="Resep tidak tersedia")
         
+        minimal_produksi = data_store.minimal_produksi
+        
         # Jalankan optimasi
-        hasil = jalankan_optimasi(harga_bahan, stok_bahan, resep, margin)
+        hasil = jalankan_optimasi(harga_bahan, stok_bahan, resep, margin, minimal_produksi)
         
         # Validasi status optimasi
         if hasil["status"] != "Optimal":
@@ -450,7 +508,8 @@ async def optimize():
             biaya_produk=hasil["biaya_produk"],
             harga_produk=hasil["harga_produk"],
             harga_produk_bulat=hasil["harga_produk_bulat"],
-            profit_per_produk=hasil["profit_per_produk"]
+            profit_per_produk=hasil["profit_per_produk"],
+            minimal_produksi=hasil["minimal_produksi"]
         )
         
     except HTTPException:
@@ -786,6 +845,130 @@ async def delete_resep(produk: str, bahan: str):
     post_to_google_sheets("resep", "delete", {
         "produk": produk_clean,
         "bahan": bahan_clean
+    })
+    
+    return None
+
+
+# ============ CRUD Endpoints untuk PRODUK ============
+
+@app.get("/api/produk", response_model=list[ProdukResponse], tags=["Produk"])
+async def get_all_produk():
+    """Ambil semua data produk"""
+    if not data_store.produk_list:
+        return []
+    return [
+        ProdukResponse(
+            produk=nama,
+            minimal_produksi=data["minimal_produksi"],
+            created_at=data.get("created_at"),
+            updated_at=data.get("updated_at")
+        )
+        for nama, data in sorted(data_store.produk_list.items())
+    ]
+
+@app.get("/api/produk/{nama_produk}", response_model=ProdukResponse, tags=["Produk"])
+async def get_produk(nama_produk: str):
+    """Ambil produk berdasarkan nama"""
+    nama_clean = nama_produk.strip().lower()
+    if nama_clean not in data_store.produk_list:
+        raise HTTPException(status_code=404, detail=f"Produk '{nama_produk}' tidak ditemukan")
+    
+    data = data_store.produk_list[nama_clean]
+    return ProdukResponse(
+        produk=nama_clean,
+        minimal_produksi=data["minimal_produksi"],
+        created_at=data.get("created_at"),
+        updated_at=data.get("updated_at")
+    )
+
+@app.post("/api/produk", response_model=ProdukResponse, status_code=201, tags=["Produk"])
+async def create_produk(request: ProdukCreate):
+    """Tambah produk baru"""
+    if not request.produk or not request.produk.strip():
+        raise HTTPException(status_code=400, detail="Nama produk tidak boleh kosong")
+    if request.minimal_produksi < 0:
+        raise HTTPException(status_code=400, detail="Minimal produksi tidak boleh negatif")
+    
+    nama_clean = request.produk.strip().lower()
+    
+    if nama_clean in data_store.produk_list:
+        raise HTTPException(status_code=409, detail=f"Produk '{request.produk}' sudah ada")
+    
+    now = datetime.now().isoformat()
+    data_store.produk_list[nama_clean] = {
+        "minimal_produksi": float(request.minimal_produksi),
+        "created_at": now,
+        "updated_at": now
+    }
+    data_store.minimal_produksi[nama_clean] = float(request.minimal_produksi)
+    
+    # Post ke Google Sheets
+    post_to_google_sheets("produk", "create", {
+        "produk": nama_clean,
+        "minimal_produksi": float(request.minimal_produksi)
+    })
+    
+    return ProdukResponse(
+        produk=nama_clean,
+        minimal_produksi=request.minimal_produksi,
+        created_at=now,
+        updated_at=now
+    )
+
+@app.put("/api/produk/{nama_produk}", response_model=ProdukResponse, tags=["Produk"])
+async def update_produk(nama_produk: str, request: ProdukCreate):
+    """Update produk yang sudah ada"""
+    nama_clean = nama_produk.strip().lower()
+    if nama_clean not in data_store.produk_list:
+        raise HTTPException(status_code=404, detail=f"Produk '{nama_produk}' tidak ditemukan")
+    
+    if not request.produk or not request.produk.strip():
+        raise HTTPException(status_code=400, detail="Nama produk tidak boleh kosong")
+    if request.minimal_produksi < 0:
+        raise HTTPException(status_code=400, detail="Minimal produksi tidak boleh negatif")
+    
+    nama_baru = request.produk.strip().lower()
+    now = datetime.now().isoformat()
+    
+    if nama_clean != nama_baru:
+        if nama_baru in data_store.produk_list:
+            raise HTTPException(status_code=409, detail=f"Produk '{request.produk}' sudah ada")
+        data_store.produk_list[nama_baru] = data_store.produk_list.pop(nama_clean)
+        data_store.minimal_produksi.pop(nama_clean, None)
+    
+    data_store.produk_list[nama_baru].update({
+        "minimal_produksi": float(request.minimal_produksi),
+        "updated_at": now
+    })
+    data_store.minimal_produksi[nama_baru] = float(request.minimal_produksi)
+    
+    post_to_google_sheets("produk", "update", {
+        "produk_old": nama_clean,
+        "produk_new": nama_baru,
+        "minimal_produksi": float(request.minimal_produksi)
+    })
+    
+    data = data_store.produk_list[nama_baru]
+    return ProdukResponse(
+        produk=nama_baru,
+        minimal_produksi=data["minimal_produksi"],
+        created_at=data.get("created_at"),
+        updated_at=data.get("updated_at")
+    )
+
+@app.delete("/api/produk/{nama_produk}", status_code=204, tags=["Produk"])
+async def delete_produk(nama_produk: str):
+    """Hapus produk"""
+    nama_clean = nama_produk.strip().lower()
+    if nama_clean not in data_store.produk_list:
+        raise HTTPException(status_code=404, detail=f"Produk '{nama_produk}' tidak ditemukan")
+    
+    del data_store.produk_list[nama_clean]
+    data_store.minimal_produksi.pop(nama_clean, None)
+    
+    post_to_google_sheets("produk", "delete", {
+        "produk": nama_clean
     })
     
     return None

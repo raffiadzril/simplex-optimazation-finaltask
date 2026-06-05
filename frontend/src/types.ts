@@ -12,6 +12,18 @@ export type BahanInput = {
   stok: number;
 };
 
+export type Produk = {
+  produk: string;
+  minimal_produksi: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type ProdukInput = {
+  produk: string;
+  minimal_produksi: number;
+};
+
 export type Resep = {
   produk: string;
   bahan: string;
@@ -35,6 +47,7 @@ export type DataStatus = {
   bahan_loaded: boolean;
   resep_loaded: boolean;
   parameter_loaded: boolean;
+  produk_loaded: boolean;
   last_update: string;
   total_produk: number;
   total_bahan: number;
@@ -48,6 +61,7 @@ export type OptimizationResult = {
   harga_produk: Record<string, number>;
   harga_produk_bulat: Record<string, number>;
   profit_per_produk: Record<string, number>;
+  minimal_produksi?: Record<string, number>;
 };
 
 export type IngredientUsage = {
@@ -71,6 +85,12 @@ export type OrModel = {
     expression: string;
     rhsGram: number;
   }>;
+  minProductionConstraints?: Array<{
+    produk: string;
+    symbol: string;
+    minimal: number;
+    value: number;
+  }>;
 };
 
 export type TabKey =
@@ -79,4 +99,5 @@ export type TabKey =
   | "analisis"
   | "bahan"
   | "resep"
+  | "produk"
   | "pengaturan";

@@ -62,6 +62,8 @@ import type {
   Parameter,
   Resep,
   ResepInput,
+  Produk,
+  ProdukInput,
   TabKey
 } from "@/types";
 
@@ -79,7 +81,13 @@ type ResepForm = {
 
 type DeleteTarget =
   | { type: "bahan"; item: Bahan }
-  | { type: "resep"; item: Resep };
+  | { type: "resep"; item: Resep }
+  | { type: "produk"; item: Produk };
+
+type ProdukForm = {
+  produk: string;
+  minimal_produksi: string;
+};
 
 const emptyBahanForm: BahanForm = {
   nama_bahan: "",
@@ -93,12 +101,18 @@ const emptyResepForm: ResepForm = {
   jumlah_gram: ""
 };
 
+const emptyProdukForm: ProdukForm = {
+  produk: "",
+  minimal_produksi: ""
+};
+
 const tabItems: Array<{ value: TabKey; label: string; icon: ReactNode }> = [
   { value: "hasil", label: "Hasil Optimasi", icon: <BarChart3 className="h-4 w-4" /> },
   { value: "model", label: "Model OR", icon: <Sigma className="h-4 w-4" /> },
   { value: "analisis", label: "Analisis Bahan", icon: <Gauge className="h-4 w-4" /> },
   { value: "bahan", label: "Data Bahan", icon: <Package className="h-4 w-4" /> },
   { value: "resep", label: "Data Resep", icon: <Utensils className="h-4 w-4" /> },
+  { value: "produk", label: "Data Produk", icon: <Croissant className="h-4 w-4" /> },
   { value: "pengaturan", label: "Pengaturan", icon: <Settings className="h-4 w-4" /> }
 ];
 
@@ -142,6 +156,21 @@ function validateResep(form: ResepForm): ResepInput {
   return { produk, bahan, jumlah_gram };
 }
 
+function validateProduk(form: ProdukForm): ProdukInput {
+  const produk = normalizeKey(form.produk);
+  const minimal_produksi = parseDecimal(form.minimal_produksi);
+
+  if (!produk) {
+    throw new Error("Nama produk tidak boleh kosong.");
+  }
+
+  if (!Number.isFinite(minimal_produksi) || minimal_produksi < 0) {
+    throw new Error("Minimal produksi harus berupa angka nol atau lebih.");
+  }
+
+  return { produk, minimal_produksi };
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("hasil");
   const [status, setStatus] = useState<DataStatus | null>(null);
@@ -158,8 +187,12 @@ export default function App() {
   const [resepSheetOpen, setResepSheetOpen] = useState(false);
   const [editingBahan, setEditingBahan] = useState<Bahan | null>(null);
   const [editingResep, setEditingResep] = useState<Resep | null>(null);
+  const [editingProduk, setEditingProduk] = useState<Produk | null>(null);
   const [bahanForm, setBahanForm] = useState<BahanForm>(emptyBahanForm);
   const [resepForm, setResepForm] = useState<ResepForm>(emptyResepForm);
+  const [produkForm, setProdukForm] = useState<ProdukForm>(emptyProdukForm);
+  const [produk, setProduk] = useState<Produk[]>([]);
+  const [produkSheetOpen, setProdukSheetOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [reloadOpen, setReloadOpen] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -167,17 +200,19 @@ export default function App() {
   const [recipeFilter, setRecipeFilter] = useState("semua");
 
   async function loadReferenceData() {
-    const [nextStatus, nextBahan, nextResep, nextParameter] = await Promise.all([
+    const [nextStatus, nextBahan, nextResep, nextParameter, nextProduk] = await Promise.all([
       api.getDataStatus(),
       api.getBahan(),
       api.getResep(),
-      api.getParameter()
+      api.getParameter(),
+      api.getProduk()
     ]);
 
     setStatus(nextStatus);
     setBahan(nextBahan);
     setResep(nextResep);
     setParameter(nextParameter);
+    setProduk(nextProduk);
     setParameterDraft(Object.fromEntries(nextParameter.map((item) => [item.parameter, String(item.nilai)])));
   }
 
@@ -226,6 +261,7 @@ export default function App() {
         produk,
         nama: titleCase(produk),
         jumlah: optimization?.jumlah_produksi_optimal[produk] ?? 0,
+        minimal: optimization?.minimal_produksi?.[produk] ?? 0,
         biaya: optimization?.biaya_produk[produk] ?? 0,
         harga: optimization?.harga_produk_bulat[produk] ?? 0,
         profit: optimization?.profit_per_produk[produk] ?? 0
@@ -347,6 +383,47 @@ export default function App() {
     }
   }
 
+  function openCreateProduk() {
+    setEditingProduk(null);
+    setProdukForm(emptyProdukForm);
+    setFormError(null);
+    setProdukSheetOpen(true);
+  }
+
+  function openEditProduk(item: Produk) {
+    setEditingProduk(item);
+    setProdukForm({
+      produk: item.produk,
+      minimal_produksi: String(item.minimal_produksi)
+    });
+    setFormError(null);
+    setProdukSheetOpen(true);
+  }
+
+  async function submitProduk(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setFormError(null);
+
+    try {
+      const payload = validateProduk(produkForm);
+      if (editingProduk) {
+        await api.updateProduk(editingProduk.produk, payload);
+        showToast("Produk berhasil diperbarui.");
+      } else {
+        await api.createProduk(payload);
+        showToast("Produk berhasil ditambahkan.");
+      }
+      setProdukSheetOpen(false);
+      await refreshAll();
+    } catch (error) {
+      setFormError(normalizeApiError(error));
+      showToast("Gagal menyimpan produk.", "error", normalizeApiError(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function confirmDelete() {
     if (!deleteTarget) {
       return;
@@ -360,6 +437,9 @@ export default function App() {
       if (target.type === "bahan") {
         await api.deleteBahan(target.item.nama_bahan);
         showToast("Bahan berhasil dihapus.");
+      } else if (target.type === "produk") {
+        await api.deleteProduk(target.item.produk);
+        showToast("Produk berhasil dihapus.");
       } else {
         await api.deleteResep(target.item.produk, target.item.bahan);
         showToast("Resep berhasil dihapus.");
@@ -529,6 +609,16 @@ export default function App() {
                 onDelete={(item) => setDeleteTarget({ type: "resep", item })}
               />
             </TabsContent>
+            <TabsContent value="produk">
+              <ProdukTab
+                produk={produk}
+                loading={loading}
+                saving={saving}
+                onCreate={openCreateProduk}
+                onEdit={openEditProduk}
+                onDelete={(item) => setDeleteTarget({ type: "produk", item })}
+              />
+            </TabsContent>
             <TabsContent value="pengaturan">
               <SettingsTab
                 status={status}
@@ -565,6 +655,16 @@ export default function App() {
           onChange={setResepForm}
           onSubmit={submitResep}
         />
+        <ProdukSheet
+          open={produkSheetOpen}
+          saving={saving}
+          editing={editingProduk}
+          form={produkForm}
+          error={formError}
+          onOpenChange={setProdukSheetOpen}
+          onChange={setProdukForm}
+          onSubmit={submitProduk}
+        />
         <DeleteDialog target={deleteTarget} resep={resep} saving={saving} onCancel={() => setDeleteTarget(null)} onConfirm={confirmDelete} />
         <ReloadDialog open={reloadOpen} saving={saving} onOpenChange={setReloadOpen} onConfirm={reloadData} />
         <Toaster toast={toast} onOpenChange={(open) => !open && setToast(null)} />
@@ -595,7 +695,7 @@ function ResultTab({
   loading: boolean;
   optimizing: boolean;
   optimization: OptimizationResult | null;
-  productionRows: Array<{ produk: string; nama: string; jumlah: number; biaya: number; harga: number; profit: number }>;
+  productionRows: Array<{ produk: string; nama: string; jumlah: number; minimal: number; biaya: number; harga: number; profit: number }>;
   totalProduction: number;
   resultExplanation: string;
 }) {
@@ -685,7 +785,7 @@ function ResultTab({
 function ProductTable({
   rows
 }: {
-  rows: Array<{ produk: string; nama: string; jumlah: number; biaya: number; harga: number; profit: number }>;
+  rows: Array<{ produk: string; nama: string; jumlah: number; minimal: number; biaya: number; harga: number; profit: number }>;
 }) {
   return (
     <Card>
@@ -697,7 +797,8 @@ function ProductTable({
           <TableHeader>
             <TableRow>
               <TableHead>Produk</TableHead>
-              <TableHead className="text-right">Produksi</TableHead>
+              <TableHead className="text-right">Minimal Produksi</TableHead>
+              <TableHead className="text-right">Produksi Optimal</TableHead>
               <TableHead className="text-right">Biaya</TableHead>
               <TableHead className="text-right">Harga jual</TableHead>
               <TableHead className="text-right">Profit/unit</TableHead>
@@ -707,7 +808,8 @@ function ProductTable({
             {rows.map((item) => (
               <TableRow key={item.produk}>
                 <TableCell data-label="Produk" className="font-semibold">{item.nama}</TableCell>
-                <TableCell data-label="Produksi" className="text-right">{formatNumber(item.jumlah)}</TableCell>
+                <TableCell data-label="Minimal Produksi" className="text-right font-medium text-muted-foreground">{formatNumber(item.minimal)}</TableCell>
+                <TableCell data-label="Produksi Optimal" className="text-right font-bold text-accent">{formatNumber(item.jumlah)}</TableCell>
                 <TableCell data-label="Biaya" className="text-right">{formatCurrency(item.biaya)}</TableCell>
                 <TableCell data-label="Harga jual" className="text-right">{formatCurrency(item.harga)}</TableCell>
                 <TableCell data-label="Profit/unit" className="text-right">{formatCurrency(item.profit)}</TableCell>
@@ -816,6 +918,38 @@ function ModelTab({
           </Table>
         </CardContent>
       </Card>
+
+      {model.minProductionConstraints && model.minProductionConstraints.length > 0 && (
+        <Card className="mt-5">
+          <CardHeader>
+            <CardTitle>Batasan Minimal Produksi</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table className="stacked-table table-accent">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produk</TableHead>
+                  <TableHead>Constraint</TableHead>
+                  <TableHead className="text-right">Target Minimal</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {model.minProductionConstraints.map((constraint) => (
+                  <TableRow key={constraint.produk}>
+                    <TableCell data-label="Produk" className="font-semibold">{titleCase(constraint.produk)}</TableCell>
+                    <TableCell data-label="Constraint">
+                      <code className="rounded bg-muted px-2 py-1 text-sm">
+                        {constraint.symbol} &gt;= {formatNumber(constraint.minimal)} unit
+                      </code>
+                    </TableCell>
+                    <TableCell data-label="Target Minimal" className="text-right">{formatNumber(constraint.minimal)} unit</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </section>
   );
 }
@@ -1330,6 +1464,7 @@ function SettingsTab({
           <StatusRow label="Bahan" ready={Boolean(status?.bahan_loaded)} />
           <StatusRow label="Resep" ready={Boolean(status?.resep_loaded)} />
           <StatusRow label="Parameter" ready={Boolean(status?.parameter_loaded)} />
+          <StatusRow label="Produk (Minimal Produksi)" ready={Boolean(status?.produk_loaded)} />
           <Button variant="outline" onClick={onReload} disabled={saving}>
             <RefreshCw className="h-4 w-4" />
             Muat ulang data backend
@@ -1527,7 +1662,11 @@ function DeleteDialog({
   onConfirm: () => void;
 }) {
   const affectedRecipes =
-    target?.type === "bahan" ? resep.filter((item) => item.bahan === target.item.nama_bahan) : [];
+    target?.type === "bahan"
+      ? resep.filter((item) => item.bahan === target.item.nama_bahan)
+      : target?.type === "produk"
+      ? resep.filter((item) => item.produk === target.item.produk)
+      : [];
 
   return (
     <Dialog open={Boolean(target)} onOpenChange={(open) => !open && onCancel()}>
@@ -1543,11 +1682,17 @@ function DeleteDialog({
             <p className="font-semibold">
               {target.type === "bahan"
                 ? titleCase(target.item.nama_bahan)
+                : target.type === "produk"
+                ? titleCase(target.item.produk)
                 : `${titleCase(target.item.produk)} - ${titleCase(target.item.bahan)}`}
             </p>
-            {affectedRecipes.length ? (
+            {target.type === "bahan" && affectedRecipes.length ? (
               <p className="mt-2 text-muted-foreground">
                 Bahan ini dipakai di {affectedRecipes.length} baris resep.
+              </p>
+            ) : target.type === "produk" && affectedRecipes.length ? (
+              <p className="mt-2 text-muted-foreground">
+                Produk ini memiliki {affectedRecipes.length} baris resep terdaftar.
               </p>
             ) : null}
           </div>
@@ -1639,5 +1784,109 @@ function SkeletonStack() {
       <Skeleton className="h-5 w-1/2" />
       <Skeleton className="h-5 w-2/3" />
     </div>
+  );
+}
+
+function ProdukTab({
+  produk,
+  loading,
+  saving,
+  onCreate,
+  onEdit,
+  onDelete
+}: {
+  produk: Produk[];
+  loading: boolean;
+  saving: boolean;
+  onCreate: () => void;
+  onEdit: (item: Produk) => void;
+  onDelete: (item: Produk) => void;
+}) {
+  return (
+    <DataSection
+      title="Data minimal produksi produk"
+      description="Kelola target minimal produksi yang dipaksakan pada solver optimasi."
+      action={
+        <Button onClick={onCreate} disabled={loading || saving}>
+          <Plus className="h-4 w-4" />
+          Tambah produk
+        </Button>
+      }
+    >
+      <Table className="stacked-table">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nama Produk</TableHead>
+            <TableHead className="text-right">Minimal Produksi (Unit)</TableHead>
+            <TableHead className="text-right">Aksi</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {loading && !produk.length ? (
+            <TableRow>
+              <TableCell colSpan={3}>
+                <SkeletonStack />
+              </TableCell>
+            </TableRow>
+          ) : produk.map((item) => (
+            <TableRow key={item.produk}>
+              <TableCell data-label="Nama Produk" className="font-semibold">{titleCase(item.produk)}</TableCell>
+              <TableCell data-label="Minimal Produksi (Unit)" className="text-right">{formatNumber(item.minimal_produksi)}</TableCell>
+              <TableCell data-label="Aksi" className="text-right">
+                <RowActions disabled={loading || saving} onEdit={() => onEdit(item)} onDelete={() => onDelete(item)} />
+              </TableCell>
+            </TableRow>
+          ))}
+          {!produk.length && !loading ? <EmptyRow colSpan={3} text="Belum ada data produk." /> : null}
+        </TableBody>
+      </Table>
+    </DataSection>
+  );
+}
+
+function ProdukSheet({
+  open,
+  saving,
+  editing,
+  form,
+  error,
+  onOpenChange,
+  onChange,
+  onSubmit
+}: {
+  open: boolean;
+  saving: boolean;
+  editing: Produk | null;
+  form: ProdukForm;
+  error: string | null;
+  onOpenChange: (open: boolean) => void;
+  onChange: (form: ProdukForm) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>{editing ? "Edit produk" : "Tambah produk"}</SheetTitle>
+          <SheetDescription>Perubahan akan dikirim ke backend dan data optimasi akan dihitung ulang.</SheetDescription>
+        </SheetHeader>
+        <form className="grid flex-1 gap-4" onSubmit={onSubmit}>
+          <Field label="Nama produk">
+            <Input value={form.produk} onChange={(event) => onChange({ ...form, produk: event.target.value })} autoFocus disabled={Boolean(editing)} />
+          </Field>
+          <Field label="Minimal produksi (unit)">
+            <Input value={form.minimal_produksi} onChange={(event) => onChange({ ...form, minimal_produksi: event.target.value })} inputMode="decimal" />
+          </Field>
+          {error ? <p className="text-sm font-semibold text-destructive">{error}</p> : null}
+          <SheetFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Batal</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Simpan perubahan
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }
